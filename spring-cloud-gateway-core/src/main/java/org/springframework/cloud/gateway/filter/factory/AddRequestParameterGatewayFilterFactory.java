@@ -26,6 +26,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * @author Spencer Gibb
+ * 将配置的param加入到request的入参中
  */
 public class AddRequestParameterGatewayFilterFactory extends AbstractNameValueGatewayFilterFactory {
 

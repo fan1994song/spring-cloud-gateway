@@ -29,6 +29,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.DispatcherHandler;
 
 /**
+ * 网关负载均衡器客户端自动配置：初始化 LoadBalancerClientFilter
  * @author Spencer Gibb
  */
 @Configuration

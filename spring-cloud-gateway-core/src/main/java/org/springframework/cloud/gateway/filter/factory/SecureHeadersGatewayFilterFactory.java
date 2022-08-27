@@ -23,6 +23,7 @@ import org.springframework.http.HttpHeaders;
 /**
  * https://blog.appcanary.com/2017/http-security-headers.html
  * @author Spencer Gibb
+ * 安全请求头过滤器
  */
 public class SecureHeadersGatewayFilterFactory extends AbstractGatewayFilterFactory {
 
@@ -48,6 +49,7 @@ public class SecureHeadersGatewayFilterFactory extends AbstractGatewayFilterFact
 		return (exchange, chain) -> {
 			HttpHeaders headers = exchange.getResponse().getHeaders();
 
+			// 可以通过 spring.cloud.gateway.filter.secure-headers 配置
 			//TODO: allow header to be disabled
 			headers.add(X_XSS_PROTECTION_HEADER, properties.getXssProtectionHeader());
 			headers.add(STRICT_TRANSPORT_SECURITY_HEADER, properties.getStrictTransportSecurity());

@@ -24,6 +24,7 @@ import reactor.core.publisher.Flux;
 
 /**
  * @author Spencer Gibb
+ * 基于配置文件解析定位器、apollo的配置应该也是基于这个
  */
 public class PropertiesRouteDefinitionLocator implements RouteDefinitionLocator {
 

@@ -29,6 +29,7 @@ import org.springframework.web.server.ServerWebExchange;
 
 /**
  * @author Spencer Gibb
+ * request中cookie数据断言校验
  */
 public class CookieRoutePredicateFactory extends AbstractRoutePredicateFactory<CookieRoutePredicateFactory.Config> {
 
@@ -52,6 +53,7 @@ public class CookieRoutePredicateFactory extends AbstractRoutePredicateFactory<C
 				return false;
 			}
 			for (HttpCookie cookie : cookies) {
+				// 判断是否匹配给定的正则表达式
 				if (cookie.getValue().matches(config.regexp)) {
 					return true;
 				}

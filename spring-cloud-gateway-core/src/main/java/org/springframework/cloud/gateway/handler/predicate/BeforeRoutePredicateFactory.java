@@ -28,6 +28,7 @@ import static org.springframework.cloud.gateway.handler.predicate.BetweenRoutePr
 
 /**
  * @author Spencer Gibb
+ * 请求时间满足在配置时间之前才通过的断言器
  */
 public class BeforeRoutePredicateFactory extends AbstractRoutePredicateFactory<BeforeRoutePredicateFactory.Config> {
 
@@ -42,6 +43,7 @@ public class BeforeRoutePredicateFactory extends AbstractRoutePredicateFactory<B
 		return Collections.singletonList(DATETIME_KEY);
 	}
 
+	// before apply断言判断当前时间是否小于配置时间
 	@Override
 	public Predicate<ServerWebExchange> apply(Config config) {
 		ZonedDateTime datetime = getZonedDateTime(config.getDatetime());

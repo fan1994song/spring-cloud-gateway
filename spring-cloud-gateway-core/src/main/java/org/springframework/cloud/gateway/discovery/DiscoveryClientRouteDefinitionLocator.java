@@ -38,6 +38,7 @@ import org.springframework.util.StringUtils;
 /**
  * TODO: change to RouteLocator? use java dsl
  * @author Spencer Gibb
+ * 从注册中心获取的路由定位解析器
  */
 public class DiscoveryClientRouteDefinitionLocator implements RouteDefinitionLocator {
 
@@ -90,11 +91,13 @@ public class DiscoveryClientRouteDefinitionLocator implements RouteDefinitionLoc
 
                     RouteDefinition routeDefinition = new RouteDefinition();
                     routeDefinition.setId(this.routeIdPrefix + serviceId);
+					// lb://${serviceId}
 					String uri = urlExpr.getValue(evalCtxt, instance, String.class);
 					routeDefinition.setUri(URI.create(uri));
 
 					final ServiceInstance instanceForEval = new DelegatingServiceInstance(instance, properties);
 
+					// 注册中心获取注册实例配置的断言，有点离谱（PathRoutePredicateFactory？？？）
 					for (PredicateDefinition original : this.properties.getPredicates()) {
 						PredicateDefinition predicate = new PredicateDefinition();
 						predicate.setName(original.getName());
@@ -105,6 +108,7 @@ public class DiscoveryClientRouteDefinitionLocator implements RouteDefinitionLoc
 						routeDefinition.getPredicates().add(predicate);
 					}
 
+					// 注册中心获取注册实例配置的过滤器，同样有点离谱（RewritePathGatewayFilterFactory？？？）
                     for (FilterDefinition original : this.properties.getFilters()) {
                     	FilterDefinition filter = new FilterDefinition();
                     	filter.setName(original.getName());

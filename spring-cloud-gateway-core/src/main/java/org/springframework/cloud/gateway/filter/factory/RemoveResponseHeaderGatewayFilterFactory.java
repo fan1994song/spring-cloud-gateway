@@ -26,6 +26,7 @@ import reactor.core.publisher.Mono;
 
 /**
  * @author Spencer Gibb
+ * response移除响应的header信息
  */
 public class RemoveResponseHeaderGatewayFilterFactory extends AbstractGatewayFilterFactory<AbstractGatewayFilterFactory.NameConfig> {
 

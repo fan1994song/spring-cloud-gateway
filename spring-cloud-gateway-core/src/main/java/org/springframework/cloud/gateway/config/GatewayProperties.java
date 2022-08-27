@@ -42,12 +42,14 @@ public class GatewayProperties {
 	private final Log logger = LogFactory.getLog(getClass());
 	/**
 	 * List of Routes
+	 * 用来对 Route 进行定义
 	 */
 	@NotNull
 	@Valid
 	private List<RouteDefinition> routes = new ArrayList<>();
 
 	/**
+	 * 用于定义默认的 Filter 列表，默认的 Filter 会应用到每一个 Route 上，gateway 处理时会将其与 Route 中指定的 Filter 进行合并后并逐个执行
 	 * List of filter definitions that are applied to every route.
 	 */
 	private List<FilterDefinition> defaultFilters = new ArrayList<>();

@@ -29,6 +29,7 @@ import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.s
 
 /**
  * @author Spencer Gibb
+ * 设置response的响应状态的filter
  */
 public class SetStatusGatewayFilterFactory extends AbstractGatewayFilterFactory<SetStatusGatewayFilterFactory.Config> {
 

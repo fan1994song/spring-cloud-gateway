@@ -37,6 +37,7 @@ import static org.springframework.http.server.PathContainer.parsePath;
 
 /**
  * @author Spencer Gibb
+ * 根据URL的PATH路径进行断言正则匹配
  */
 public class PathRoutePredicateFactory extends AbstractRoutePredicateFactory<PathRoutePredicateFactory.Config> {
 	private static final Log log = LogFactory.getLog(RoutePredicateFactory.class);
@@ -64,11 +65,17 @@ public class PathRoutePredicateFactory extends AbstractRoutePredicateFactory<Pat
 			config.pathPattern = this.pathPatternParser.parse(config.pattern);
 		}
 		return exchange -> {
+			// 获取request的path，比如：/taw/h5/detail
 			PathContainer path = parsePath(exchange.getRequest().getURI().getRawPath());
 
+			// path是否匹配，成功则命中route，与配置的 Path进行匹配
 			boolean match = config.pathPattern.matches(path);
 			traceMatch("Pattern", config.pathPattern.getPatternString(), path, match);
 			if (match) {
+				/**
+				 * 解析路径参数，设置到 ServerWebExchange.attributes 属性中，提供给后续的 GatewayFilter 使用。
+				 * 举个例子，当配置的 Path 为 /foo/{segment} ，请求的 Path 为 /foo/123 ，在此处打断点
+				 */
 				PathMatchInfo pathMatchInfo = config.pathPattern.matchAndExtract(path);
 				putUriTemplateVariables(exchange, pathMatchInfo.getUriVariables());
 			}

@@ -39,6 +39,7 @@ public class CachingRouteLocator implements RouteLocator {
 
 	public CachingRouteLocator(RouteLocator delegate) {
 		this.delegate = delegate;
+		// 根据orderId进行相关排序
 		routes = CacheFlux.lookup(cache, "routes", Route.class)
 				.onCacheMissResume(() -> this.delegate.getRoutes().sort(AnnotationAwareOrderComparator.INSTANCE));
 	}

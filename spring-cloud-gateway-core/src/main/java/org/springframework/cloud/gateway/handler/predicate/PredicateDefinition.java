@@ -31,11 +31,22 @@ import static org.springframework.util.StringUtils.tokenizeToStringArray;
 
 /**
  * @author Spencer Gibb
+ * 循组件名前缀 + Definition 后缀的命名规范，用于定义 Predicate
  */
 @Validated
 public class PredicateDefinition {
+	/**
+	 * 定义了 Predicate 的名称，它们要符固定的命名规范，为对应的工厂名称
+	 */
 	@NotNull
 	private String name;
+
+	/**
+	 * 示例（假）：NameUtils.generateName
+	 * X-Request-Foo, Bar ，会被解析成 FilterDefinition 中的 Map 类型属性 args。此处会被解析成两组键值对，
+	 * 以英文逗号将=后面的字符串分隔成数组，key是固定字符串 _genkey_ + 数组元素下标，value为数组元素自身
+	 * 道理是一样的
+	 */
 	private Map<String, String> args = new LinkedHashMap<>();
 
 	public PredicateDefinition() {

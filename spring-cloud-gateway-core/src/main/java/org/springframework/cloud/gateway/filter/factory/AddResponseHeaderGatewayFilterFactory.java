@@ -21,6 +21,7 @@ import org.springframework.cloud.gateway.filter.GatewayFilter;
 
 /**
  * @author Spencer Gibb
+ * response增加响应的header信息
  */
 public class AddResponseHeaderGatewayFilterFactory extends AbstractNameValueGatewayFilterFactory {
 

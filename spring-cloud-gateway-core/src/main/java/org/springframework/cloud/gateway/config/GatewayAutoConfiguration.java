@@ -139,9 +139,11 @@ import static org.springframework.cloud.gateway.config.HttpClientProperties.Pool
 
 /**
  * @author Spencer Gibb
+ * 网关核心自动配置类，一系列初始化
  */
-@Configuration
+// spring.cloud.gateway.enabled 配置网关的开启关闭
 @ConditionalOnProperty(name = "spring.cloud.gateway.enabled", matchIfMissing = true)
+@Configuration
 @EnableConfigurationProperties
 @AutoConfigureBefore(HttpHandlerAutoConfiguration.class)
 @AutoConfigureAfter({ GatewayLoadBalancerClientAutoConfiguration.class,
@@ -149,15 +151,20 @@ import static org.springframework.cloud.gateway.config.HttpClientProperties.Pool
 @ConditionalOnClass(DispatcherHandler.class)
 public class GatewayAutoConfiguration {
 
+	/**
+	 * 初始化netty
+	 */
 	@Configuration
 	@ConditionalOnClass(HttpClient.class)
 	protected static class NettyConfiguration {
+		// 1。2 使用 Netty 实现的 HttpClient
 		@Bean
 		@ConditionalOnMissingBean
 		public HttpClient httpClient(@Qualifier("nettyClientOptions") Consumer<? super HttpClientOptions.Builder> options) {
 			return HttpClient.create(options);
 		}
 
+		// 1。1
 		@Bean
 		public Consumer<? super HttpClientOptions.Builder> nettyClientOptions(HttpClientProperties properties) {
 			return opts -> {
@@ -166,7 +173,7 @@ public class GatewayAutoConfiguration {
 					opts.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, properties.getConnectTimeout());
 				}
 
-				// configure ssl
+				// configure ssl 配置SSL资源信息
 				HttpClientProperties.Ssl ssl = properties.getSsl();
 				opts.sslHandshakeTimeoutMillis(ssl.getHandshakeTimeoutMillis());
 				opts.sslCloseNotifyFlushTimeoutMillis(ssl.getCloseNotifyFlushTimeoutMillis());
@@ -185,7 +192,7 @@ public class GatewayAutoConfiguration {
 					});
 				}
 
-				// configure pool resources
+				// configure pool resources 配置连接池资源
 				HttpClientProperties.Pool pool = properties.getPool();
 
 				if (pool.getType() == DISABLED) {
@@ -200,7 +207,7 @@ public class GatewayAutoConfiguration {
 				}
 
 
-				// configure proxy if proxy host is set.
+				// configure proxy if proxy host is set. 如果设置了代理主机，则配置代理
 				HttpClientProperties.Proxy proxy = properties.getProxy();
 				if (StringUtils.hasText(proxy.getHost())) {
 					opts.proxy(typeSpec -> {
@@ -234,6 +241,14 @@ public class GatewayAutoConfiguration {
 			return new HttpClientProperties();
 		}
 
+		/**
+		 * 1。3
+		 * netty路由过滤器
+		 * @param httpClient
+		 * @param headersFilters
+		 * @param properties
+		 * @return
+		 */
 		@Bean
 		public NettyRoutingFilter routingFilter(HttpClient httpClient,
 												ObjectProvider<List<HttpHeadersFilter>> headersFilters,
@@ -241,11 +256,23 @@ public class GatewayAutoConfiguration {
 			return new NettyRoutingFilter(httpClient, headersFilters, properties);
 		}
 
+		/**
+		 * 1。4
+		 * netty响应解析器
+		 * @param properties
+		 * @return
+		 */
 		@Bean
 		public NettyWriteResponseFilter nettyWriteResponseFilter(GatewayProperties properties) {
 			return new NettyWriteResponseFilter(properties.getStreamingMediaTypes());
 		}
 
+		/**
+		 * 1。5
+		 * Reactor Netty Web Socket 客户端
+		 * @param options
+		 * @return
+		 */
 		@Bean
 		public ReactorNettyWebSocketClient reactorNettyWebSocketClient(@Qualifier("nettyClientOptions") Consumer<? super HttpClientOptions.Builder> options) {
 			return new ReactorNettyWebSocketClient(options);
@@ -270,24 +297,28 @@ public class GatewayAutoConfiguration {
 		return new RouteLocatorBuilder(context);
 	}
 
+	// 4。1 使用 GatewayProperties Bean ，创建
 	@Bean
 	@ConditionalOnMissingBean
 	public PropertiesRouteDefinitionLocator propertiesRouteDefinitionLocator(GatewayProperties properties) {
 		return new PropertiesRouteDefinitionLocator(properties);
 	}
 
+	// 4。2 创建
 	@Bean
 	@ConditionalOnMissingBean(RouteDefinitionRepository.class)
 	public InMemoryRouteDefinitionRepository inMemoryRouteDefinitionRepository() {
 		return new InMemoryRouteDefinitionRepository();
 	}
 
+	// 4。3 Primary 优先被注入, 使用上面创建的 RouteDefinitionLocator 的 Bean 对象们，创建一个类型为 CompositeRouteDefinitionLocator 的 Bean 对象
 	@Bean
 	@Primary
 	public RouteDefinitionLocator routeDefinitionLocator(List<RouteDefinitionLocator> routeDefinitionLocators) {
 		return new CompositeRouteDefinitionLocator(Flux.fromIterable(routeDefinitionLocators));
 	}
 
+	// 4.4 创建一个类型为 RouteDefinitionRouteLocator 的 Bean 对象
 	@Bean
 	public RouteLocator routeDefinitionRouteLocator(GatewayProperties properties,
 												   List<GatewayFilterFactory> GatewayFilters,
@@ -296,6 +327,7 @@ public class GatewayAutoConfiguration {
 		return new RouteDefinitionRouteLocator(routeDefinitionLocator, predicates, GatewayFilters, properties);
 	}
 
+	// 4.5 创建一个类型为 CachingRouteLocator 的 Bean 对象，优先被注入的吧
 	@Bean
 	@Primary
 	//TODO: property to disable composite?
@@ -308,6 +340,7 @@ public class GatewayAutoConfiguration {
 		return new RouteRefreshListener(publisher);
 	}
 
+	// 2。6
 	@Bean
 	public FilteringWebHandler filteringWebHandler(List<GlobalFilter> globalFilters) {
 		return new FilteringWebHandler(globalFilters);
@@ -317,7 +350,8 @@ public class GatewayAutoConfiguration {
 	public GlobalCorsProperties globalCorsProperties() {
 		return new GlobalCorsProperties();
 	}
-	
+
+	// 创建一个类型为 RoutePredicateHandlerMapping 的 Bean 对象，用于查找匹配到 Route ，并进行处理
 	@Bean
 	public RoutePredicateHandlerMapping routePredicateHandlerMapping(
 			FilteringWebHandler webHandler, RouteLocator routeLocator,
@@ -328,6 +362,7 @@ public class GatewayAutoConfiguration {
 
 	// ConfigurationProperty beans
 
+	// 初始化网关的配置信息
 	@Bean
 	public GatewayProperties gatewayProperties() {
 		return new GatewayProperties();
@@ -364,11 +399,13 @@ public class GatewayAutoConfiguration {
 		return new AdaptCachedBodyGlobalFilter();
 	}
 
+	// 2。1 各种过滤器实现
 	@Bean
 	public RouteToRequestUrlFilter routeToRequestUrlFilter() {
 		return new RouteToRequestUrlFilter();
 	}
 
+	// 2。2
 	@Bean
 	@ConditionalOnBean(DispatcherHandler.class)
 	public ForwardRoutingFilter forwardRoutingFilter(ObjectProvider<DispatcherHandler> dispatcherHandler) {
@@ -380,11 +417,13 @@ public class GatewayAutoConfiguration {
 		return new ForwardPathFilter();
 	}
 
+	// 2。3
 	@Bean
 	public WebSocketService webSocketService() {
 		return new HandshakeWebSocketService();
 	}
 
+	// 2。4
 	@Bean
 	public WebsocketRoutingFilter websocketRoutingFilter(WebSocketClient webSocketClient,
 														 WebSocketService webSocketService,
@@ -409,8 +448,7 @@ public class GatewayAutoConfiguration {
 		return new WebClientWriteResponseFilter();
 	}*/
 
-	// Predicate Factory beans
-
+	// Predicate Factory beans 断言工厂bean
 	@Bean
 	public AfterRoutePredicateFactory afterRoutePredicateFactory() {
 		return new AfterRoutePredicateFactory();
@@ -518,6 +556,7 @@ public class GatewayAutoConfiguration {
 		return new ModifyResponseBodyGatewayFilterFactory(codecConfigurer);
 	}
 
+	// 前缀网关过滤器工厂类
 	@Bean
 	public PrefixPathGatewayFilterFactory prefixPathGatewayFilterFactory() {
 		return new PrefixPathGatewayFilterFactory();
@@ -615,6 +654,7 @@ public class GatewayAutoConfiguration {
 	@ConditionalOnClass(Health.class)
 	protected static class GatewayActuatorConfiguration {
 
+		// 创建一个类型为 GatewayControllerEndpoint 的 Bean 对象，提供管理网关的 HTTP API
 		@Bean
 		@ConditionalOnEnabledEndpoint
 		public GatewayControllerEndpoint gatewayControllerEndpoint(RouteDefinitionLocator routeDefinitionLocator, List<GlobalFilter> globalFilters,

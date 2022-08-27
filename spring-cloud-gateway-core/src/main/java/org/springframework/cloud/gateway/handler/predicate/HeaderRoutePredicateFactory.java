@@ -30,6 +30,7 @@ import org.springframework.web.server.ServerWebExchange;
 
 /**
  * @author Spencer Gibb
+ * 请求header的断言条件过滤
  */
 public class HeaderRoutePredicateFactory extends AbstractRoutePredicateFactory<HeaderRoutePredicateFactory.Config> {
 
@@ -45,6 +46,7 @@ public class HeaderRoutePredicateFactory extends AbstractRoutePredicateFactory<H
 		return Arrays.asList(HEADER_KEY, REGEXP_KEY);
 	}
 
+	// 从request的header中获取某个名称的结果进行正则匹配
 	@Override
 	public Predicate<ServerWebExchange> apply(Config config) {
 		boolean hasRegex = !StringUtils.isEmpty(config.regexp);
@@ -56,6 +58,7 @@ public class HeaderRoutePredicateFactory extends AbstractRoutePredicateFactory<H
 			}
 			// values is now guaranteed to not be empty
 			if (hasRegex) {
+				// regexp不为空，有一个匹配的就返回return
 				// check if a header value matches
 				return values.stream().anyMatch(value -> value.matches(config.regexp));
 			}

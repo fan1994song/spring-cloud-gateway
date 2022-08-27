@@ -32,6 +32,11 @@ import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.g
 
 /**
  * @author Spencer Gibb
+ *
+ * predicates:
+ * - Path=/foo/{segment}
+ * filters:
+ * - SetPath=/{segment}
  */
 public class SetPathGatewayFilterFactory extends AbstractGatewayFilterFactory<SetPathGatewayFilterFactory.Config> {
 

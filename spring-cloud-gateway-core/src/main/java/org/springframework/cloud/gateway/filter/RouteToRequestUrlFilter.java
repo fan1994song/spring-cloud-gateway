@@ -36,11 +36,15 @@ import reactor.core.publisher.Mono;
 
 /**
  * @author Spencer Gibb
+ * 实现 GlobalFilter 接口
  */
 public class RouteToRequestUrlFilter implements GlobalFilter, Ordered {
 
 	private static final Log log = LogFactory.getLog(RouteToRequestUrlFilter.class);
 
+	/**
+	 * order：10000
+	 */
 	public static final int ROUTE_TO_URL_FILTER_ORDER = 10000;
 	private static final String SCHEME_REGEX = "[a-zA-Z]([a-zA-Z]|\\d|\\+|\\.|-)*:.*";
 	static final Pattern schemePattern = Pattern.compile(SCHEME_REGEX);
@@ -52,6 +56,7 @@ public class RouteToRequestUrlFilter implements GlobalFilter, Ordered {
 
 	@Override
 	public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+		// 获得 Route
 		Route route = exchange.getAttribute(GATEWAY_ROUTE_ATTR);
 		if (route == null) {
 			return chain.filter(exchange);
@@ -74,6 +79,7 @@ public class RouteToRequestUrlFilter implements GlobalFilter, Ordered {
 			throw new IllegalStateException("Invalid host: " + routeUri.toString());
 		}
 
+		// 拼接 requestUrl，使用route的请求协议、host、端口号进行原request的替换
 		URI mergedUrl = UriComponentsBuilder.fromUri(uri)
 				// .uri(routeUri)
 				.scheme(routeUri.getScheme())
@@ -81,7 +87,9 @@ public class RouteToRequestUrlFilter implements GlobalFilter, Ordered {
 				.port(routeUri.getPort())
 				.build(encoded)
 				.toUri();
+		// 设置 requestUrl 到 GATEWAY_REQUEST_URL_ATTR
 		exchange.getAttributes().put(GATEWAY_REQUEST_URL_ATTR, mergedUrl);
+		// 提交过滤器链继续过滤
 		return chain.filter(exchange);
 	}
 

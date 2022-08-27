@@ -31,6 +31,7 @@ import static org.springframework.util.StringUtils.commaDelimitedListToStringArr
 
 /**
  * @author Spencer Gibb
+ * Websocket 路由网关过滤器。其根据 ws:// / wss:// 前缀( Scheme )过滤处理，代理后端 Websocket 服务，提供给客户端连接
  */
 public class WebsocketRoutingFilter implements GlobalFilter, Ordered {
 	private static final Log log = LogFactory.getLog(WebsocketRoutingFilter.class);
@@ -52,6 +53,7 @@ public class WebsocketRoutingFilter implements GlobalFilter, Ordered {
 
 	@Override
 	public int getOrder() {
+		// 在 NettyRoutingFilter 之前，因为这会路由某些 http 请求
 		// Before NettyRoutingFilter since this routes certain http requests
 		return Ordered.LOWEST_PRECEDENCE - 1;
 	}
@@ -59,13 +61,15 @@ public class WebsocketRoutingFilter implements GlobalFilter, Ordered {
 	@Override
 	public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
 		changeSchemeIfIsWebSocketUpgrade(exchange);
-
+		// 获得 requestUrl
 		URI requestUrl = exchange.getRequiredAttribute(GATEWAY_REQUEST_URL_ATTR);
 		String scheme = requestUrl.getScheme();
 
+		// 判断是否能够处理
 		if (isAlreadyRouted(exchange) || (!"ws".equals(scheme) && !"wss".equals(scheme))) {
 			return chain.filter(exchange);
 		}
+		// 设置已经路由标志
 		setAlreadyRouted(exchange);
 
 
@@ -80,6 +84,7 @@ public class WebsocketRoutingFilter implements GlobalFilter, Ordered {
 					.collect(Collectors.toList());
 		}
 
+		// 处理客户端发起的连接请求
 		return this.webSocketService.handleRequest(exchange,
 				new ProxyWebSocketHandler(requestUrl, this.webSocketClient,
 						filtered, protocols));
@@ -152,9 +157,11 @@ public class WebsocketRoutingFilter implements GlobalFilter, Ordered {
 				@Override
 				public Mono<Void> handle(WebSocketSession proxySession) {
 					// Use retain() for Reactor Netty
+					// 转发消息 客户端 =》后端服务
 					Mono<Void> proxySessionSend = proxySession
 							.send(session.receive().doOnNext(WebSocketMessage::retain));
                             // .log("proxySessionSend", Level.FINE);
+					// 转发消息 后端服务=》客户端
 					Mono<Void> serverSessionSend = session
 							.send(proxySession.receive().doOnNext(WebSocketMessage::retain));
                             // .log("sessionSend", Level.FINE);

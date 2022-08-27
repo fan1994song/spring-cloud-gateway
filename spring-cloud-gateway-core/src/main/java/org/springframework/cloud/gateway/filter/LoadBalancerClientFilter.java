@@ -37,10 +37,13 @@ import reactor.core.publisher.Mono;
 /**
  * @author Spencer Gibb
  * @author Tim Ysewyn
+ * gateway的负载均衡选择器还是根据的ribbon来的，当然也可以自行实现基于ribbon的负载均衡策略
+ * LoadBalancerClientFilter 根据 lb:// 前缀过滤处理，使用 serviceId 选择一个服务实例，从而实现负载均衡
  */
 public class LoadBalancerClientFilter implements GlobalFilter, Ordered {
 
 	private static final Log log = LogFactory.getLog(LoadBalancerClientFilter.class);
+	// order:10100 在RouteToRequestFilter之后
 	public static final int LOAD_BALANCER_CLIENT_FILTER_ORDER = 10100;
 
 	protected final LoadBalancerClient loadBalancer;
@@ -57,16 +60,19 @@ public class LoadBalancerClientFilter implements GlobalFilter, Ordered {
 	@Override
 	@SuppressWarnings("Duplicates")
 	public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+		// 获得 URI
 		URI url = exchange.getAttribute(GATEWAY_REQUEST_URL_ATTR);
 		String schemePrefix = exchange.getAttribute(GATEWAY_SCHEME_PREFIX_ATTR);
 		if (url == null || (!"lb".equals(url.getScheme()) && !"lb".equals(schemePrefix))) {
 			return chain.filter(exchange);
 		}
+		// 添加 原始请求URI 到 GATEWAY_ORIGINAL_REQUEST_URL_ATTR
 		//preserve the original url
 		addOriginalRequestUrl(exchange, url);
 
 		log.trace("LoadBalancerClientFilter url before: " + url);
 
+		// 选择服务器实例、这里就可以去动态更替得到目标实例来进行负载均衡
 		final ServiceInstance instance = choose(exchange);
 
 		if (instance == null) {
@@ -82,10 +88,13 @@ public class LoadBalancerClientFilter implements GlobalFilter, Ordered {
 			overrideScheme = url.getScheme();
 		}
 
+		// 重构URL。无非就是将域名处替换为ip+port的形式，发起请求，比如转换为：http://192.168.1.10:8081/user/hello
 		URI requestUrl = loadBalancer.reconstructURI(new DelegatingServiceInstance(instance, overrideScheme), uri);
 
 		log.trace("LoadBalancerClientFilter url chosen: " + requestUrl);
+		// 添加 请求URI 到 GATEWAY_REQUEST_URL_ATTR
 		exchange.getAttributes().put(GATEWAY_REQUEST_URL_ATTR, requestUrl);
+		// 提交过滤器链继续过滤
 		return chain.filter(exchange);
 	}
 

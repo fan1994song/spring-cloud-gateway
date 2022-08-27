@@ -7,6 +7,7 @@ import reactor.core.publisher.Mono;
 /**
  * Contract to allow a {@link WebFilter} to delegate to the next in the chain.
  *
+ * 允许委托给链中的下一个,filter责任链模式去依次执行相关逻辑
  * @author Rossen Stoyanchev
  * @since 5.0
  */

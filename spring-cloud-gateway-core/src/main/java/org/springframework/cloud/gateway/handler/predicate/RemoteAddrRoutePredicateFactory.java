@@ -40,6 +40,7 @@ import io.netty.handler.ipfilter.IpSubnetFilterRule;
 
 /**
  * @author Spencer Gibb
+ * 请求来源 IP 在指定范围内的断言匹配规则 RemoteAddr=192.168.1.1/24
  */
 public class RemoteAddrRoutePredicateFactory extends AbstractRoutePredicateFactory<RemoteAddrRoutePredicateFactory.Config> {
 
@@ -70,9 +71,11 @@ public class RemoteAddrRoutePredicateFactory extends AbstractRoutePredicateFacto
 
 	@Override
 	public Predicate<ServerWebExchange> apply(Config config) {
+		// 获取配置的ip过滤规则列表
         List<IpSubnetFilterRule> sources = convert(config.sources);
 
 		return exchange -> {
+			// 从request中解析获取IP端口信息，现在好像有很多ip虚假的问题，这个应该是不会用的
 			InetSocketAddress remoteAddress = config.remoteAddressResolver.resolve(exchange);
 			if (remoteAddress != null) {
 				String hostAddress = remoteAddress.getAddress().getHostAddress();
@@ -82,6 +85,7 @@ public class RemoteAddrRoutePredicateFactory extends AbstractRoutePredicateFacto
 					log.debug("Remote addresses didn't match " + hostAddress + " != " + host);
 				}
 
+				// 满足一个IP规则就是成功匹配上
 				for (IpSubnetFilterRule source : sources) {
 					if (source.matches(remoteAddress)) {
 						return true;

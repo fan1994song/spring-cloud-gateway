@@ -31,6 +31,7 @@ import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.a
 
 /**
  * @author Spencer Gibb
+ * path增加配置项的前缀，类似RewritePathGatewayFilterFactory
  */
 public class PrefixPathGatewayFilterFactory extends AbstractGatewayFilterFactory<PrefixPathGatewayFilterFactory.Config> {
 
@@ -50,21 +51,24 @@ public class PrefixPathGatewayFilterFactory extends AbstractGatewayFilterFactory
 	@Override
 	public GatewayFilter apply(Config config) {
 		return (exchange, chain) -> {
-
+			// 设置过，返回
 			boolean alreadyPrefixed = exchange.getAttributeOrDefault(GATEWAY_ALREADY_PREFIXED_ATTR, false);
 			if (alreadyPrefixed) {
 				return chain.filter(exchange);
 			}
 			exchange.getAttributes().put(GATEWAY_ALREADY_PREFIXED_ATTR, true);
-
+			// 记录原始uri
 			ServerHttpRequest req = exchange.getRequest();
 			addOriginalRequestUrl(exchange, req.getURI());
+			// 添加prefix
 			String newPath = config.prefix + req.getURI().getRawPath();
 
+			// 构造request的新path
 			ServerHttpRequest request = req.mutate()
 					.path(newPath)
 					.build();
 
+			// 放入gateway属性中
 			exchange.getAttributes().put(GATEWAY_REQUEST_URL_ATTR, request.getURI());
 
 			if (log.isTraceEnabled()) {

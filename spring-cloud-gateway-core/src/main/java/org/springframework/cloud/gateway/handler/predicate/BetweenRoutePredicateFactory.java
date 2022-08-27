@@ -32,10 +32,13 @@ import javax.validation.constraints.NotEmpty;
 
 /**
  * @author Spencer Gibb
+ * 请求时间满足在配置时间之间的才通过的断言器
  */
 public class BetweenRoutePredicateFactory extends AbstractRoutePredicateFactory<BetweenRoutePredicateFactory.Config> {
 
+	// 晚于
 	public static final String DATETIME1_KEY = "datetime1";
+	// 早于
 	public static final String DATETIME2_KEY = "datetime2";
 
 	public BetweenRoutePredicateFactory() {

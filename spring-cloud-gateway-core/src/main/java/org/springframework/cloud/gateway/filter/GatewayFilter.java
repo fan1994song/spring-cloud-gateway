@@ -27,7 +27,7 @@ import reactor.core.publisher.Mono;
  * as security, timeouts, and others. Specific to a Gateway
  *
  * Copied from WebFilter
- *
+ * 网关层的拦截器，应该是用于单服务的filter逻辑，毕竟在网关，仍不适合remote耗时操作在这里执行
  * @author Rossen Stoyanchev
  * @since 5.0
  */

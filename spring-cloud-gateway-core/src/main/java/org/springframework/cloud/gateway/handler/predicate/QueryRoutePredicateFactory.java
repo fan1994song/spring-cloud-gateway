@@ -29,6 +29,7 @@ import org.springframework.web.server.ServerWebExchange;
 
 /**
  * @author Spencer Gibb
+ * 请求 QueryParam 匹配类型的断言
  */
 public class QueryRoutePredicateFactory extends AbstractRoutePredicateFactory<QueryRoutePredicateFactory.Config> {
 
@@ -47,12 +48,13 @@ public class QueryRoutePredicateFactory extends AbstractRoutePredicateFactory<Qu
 	@Override
 	public Predicate<ServerWebExchange> apply(Config config) {
 		return exchange -> {
+			// 不存在匹配字段值要求时，只需要判断 查询参数中是否包含该参数入参
 			if (!StringUtils.hasText(config.regexp)) {
 				// check existence of header
 				return exchange.getRequest().getQueryParams().containsKey(config.param);
 			}
 
-
+			// 查询该参数入参数据，并进行正则匹配。一个命中即可为true
 			List<String> values = exchange.getRequest().getQueryParams().get(config.param);
 			if (values == null) {
 				return false;

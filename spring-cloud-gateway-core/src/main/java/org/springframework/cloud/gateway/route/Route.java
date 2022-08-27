@@ -55,6 +55,11 @@ public class Route implements Ordered {
 		return new Builder();
 	}
 
+	/**
+	 * 路由定义转换为route实例
+	 * @param routeDefinition
+	 * @return
+	 */
 	public static Builder builder(RouteDefinition routeDefinition) {
 		return new Builder()
 				.id(routeDefinition.getId())

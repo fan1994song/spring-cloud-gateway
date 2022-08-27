@@ -26,6 +26,9 @@ import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.server.ServerWebExchange;
 
+/**
+ * 移除请求相关的 Header 属性
+ */
 @ConfigurationProperties("spring.cloud.gateway.filter.remove-hop-by-hop")
 public class RemoveHopByHopHeadersFilter implements HttpHeadersFilter, Ordered {
 

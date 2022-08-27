@@ -26,6 +26,7 @@ import org.springframework.web.server.ServerWebExchange;
 
 /**
  * @author Spencer Gibb
+ * 根据请求方式类型匹配断言（GET、POST、PUT、DELETE等）
  */
 public class MethodRoutePredicateFactory extends AbstractRoutePredicateFactory<MethodRoutePredicateFactory.Config> {
 
@@ -43,6 +44,7 @@ public class MethodRoutePredicateFactory extends AbstractRoutePredicateFactory<M
 	@Override
 	public Predicate<ServerWebExchange> apply(Config config) {
 		return exchange -> {
+			// 相同则命中
 			HttpMethod requestMethod = exchange.getRequest().getMethod();
 			return requestMethod == config.getMethod();
 		};

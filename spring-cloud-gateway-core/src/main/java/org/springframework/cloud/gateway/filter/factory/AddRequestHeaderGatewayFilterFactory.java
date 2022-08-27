@@ -22,6 +22,9 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 
 /**
  * @author Spencer Gibb
+ * 看样子是根据config配置增加request中的属性而已
+ * filters:
+ * - AddRequestHeader=X-Request-Foo, Bar
  */
 public class AddRequestHeaderGatewayFilterFactory extends AbstractNameValueGatewayFilterFactory {
 
@@ -32,6 +35,7 @@ public class AddRequestHeaderGatewayFilterFactory extends AbstractNameValueGatew
 					.header(config.getName(), config.getValue())
 					.build();
 
+			// 创建新的 ServerWebExchange ，提交过滤器链继续过滤
 			return chain.filter(exchange.mutate().request(request).build());
 		};
     }

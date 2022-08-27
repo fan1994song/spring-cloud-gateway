@@ -29,6 +29,7 @@ import reactor.core.publisher.Mono;
 
 /**
  * @author Spencer Gibb
+ * 从内存中路由定义存储库
  */
 public class InMemoryRouteDefinitionRepository implements RouteDefinitionRepository {
 

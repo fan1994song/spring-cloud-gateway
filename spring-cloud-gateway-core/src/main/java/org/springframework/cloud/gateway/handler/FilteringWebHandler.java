@@ -42,6 +42,8 @@ import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.G
  * WebHandler that delegates to a chain of {@link GlobalFilter} instances and
  * {@link GatewayFilterFactory} instances then to the target {@link WebHandler}.
  *
+ * 获得 Route 的 GatewayFilter 数组，创建 GatewayFilterChain 处理请求
+ *
  * @author Rossen Stoyanchev
  * @author Spencer Gibb
  * @since 0.1
@@ -49,16 +51,23 @@ import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.G
 public class FilteringWebHandler implements WebHandler {
 	protected static final Log logger = LogFactory.getLog(FilteringWebHandler.class);
 
+	// 全局过滤器
 	private final List<GatewayFilter> globalFilters;
 
 	public FilteringWebHandler(List<GlobalFilter> globalFilters) {
 		this.globalFilters = loadFilters(globalFilters);
 	}
 
+	/**
+	 * GlobalFilter转换为GatewayFilterAdapter适配器的操作
+	 * @param filters
+	 * @return
+	 */
 	private static List<GatewayFilter> loadFilters(List<GlobalFilter> filters) {
 		return filters.stream()
 				.map(filter -> {
 					GatewayFilterAdapter gatewayFilter = new GatewayFilterAdapter(filter);
+					// 当 GlobalFilter 子类实现了 org.springframework.core.Ordered 接口，在委托一层 OrderedGatewayFilter，好排序
 					if (filter instanceof Ordered) {
 						int order = ((Ordered) filter).getOrder();
 						return new OrderedGatewayFilter(gatewayFilter, order);
@@ -74,18 +83,22 @@ public class FilteringWebHandler implements WebHandler {
 
 	@Override
 	public Mono<Void> handle(ServerWebExchange exchange) {
+		// 获取路由特有的filter
 		Route route = exchange.getRequiredAttribute(GATEWAY_ROUTE_ATTR);
 		List<GatewayFilter> gatewayFilters = route.getFilters();
 
+		// 加入到当前全局filter中
 		List<GatewayFilter> combined = new ArrayList<>(this.globalFilters);
 		combined.addAll(gatewayFilters);
 		//TODO: needed or cached?
+		// 排序
 		AnnotationAwareOrderComparator.sort(combined);
 
 		if (logger.isDebugEnabled()) {
 			logger.debug("Sorted gatewayFilterFactories: "+ combined);
 		}
 
+		// 创建过滤器chain对象，依次执行
 		return new DefaultGatewayFilterChain(combined).filter(exchange);
 	}
 
@@ -122,6 +135,9 @@ public class FilteringWebHandler implements WebHandler {
 		}
 	}
 
+	/**
+	 * 适配器模式：将 GlobalFilter 适配成 GatewayFilter
+	 */
 	private static class GatewayFilterAdapter implements GatewayFilter {
 
 		private final GlobalFilter delegate;

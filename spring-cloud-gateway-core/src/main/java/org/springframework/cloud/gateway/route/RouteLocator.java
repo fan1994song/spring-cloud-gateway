@@ -21,6 +21,7 @@ import reactor.core.publisher.Flux;
 
 /**
  * @author Spencer Gibb
+ * Route 的定位器或者说探测器，是用来获取 Route 信息
  */
 //TODO: rename to Routes?
 public interface RouteLocator {

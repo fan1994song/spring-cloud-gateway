@@ -29,17 +29,34 @@ import org.springframework.validation.annotation.Validated;
 import static org.springframework.util.StringUtils.tokenizeToStringArray;
 
 /**
+ * 过滤器定义
  * @author Spencer Gibb
  */
 @Validated
 public class FilterDefinition {
+	/**
+	 * 对应工厂名的前缀，猜测根据name匹配到目标filter后，不同filter对应转换为不同DTO进行filter的通用功能模块的定制配置的处理
+	 * 比如：AddRequestHeader 对应 FilterDefinition 中的 name 属性。AddRequestHeader为AddRequestHeaderGatewayFilterFactory 的类名前缀
+	 */
 	@NotNull
 	private String name;
+
+	/**
+	 * 示例：NameUtils.generateName
+	 * X-Request-Foo, Bar ，会被解析成 FilterDefinition 中的 Map 类型属性 args。此处会被解析成两组键值对，
+	 * 以英文逗号将=后面的字符串分隔成数组，key是固定字符串 _genkey_ + 数组元素下标，value为数组元素自身
+	 */
 	private Map<String, String> args = new LinkedHashMap<>();
 
 	public FilterDefinition() {
 	}
 
+	/**
+	 * 过滤器解析类似，根据 text 创建 FilterDefinition
+	 *
+	 * @param text 格式 ${name}=${args[0]},${args[1]}...${args[n]}
+	 *             例如 AddRequestParameter=foo, bar
+	 */
 	public FilterDefinition(String text) {
 		int eqIdx = text.indexOf('=');
 		if (eqIdx <= 0) {

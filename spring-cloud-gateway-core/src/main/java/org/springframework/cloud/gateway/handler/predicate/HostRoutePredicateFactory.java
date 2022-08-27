@@ -31,6 +31,7 @@ import org.springframework.web.server.ServerWebExchange;
 
 /**
  * @author Spencer Gibb
+ * 根据主机名来进行断言的校验（例子：Host: activity.m.duibatest.com.cn）
  */
 public class HostRoutePredicateFactory extends AbstractRoutePredicateFactory<HostRoutePredicateFactory.Config> {
 
@@ -52,9 +53,11 @@ public class HostRoutePredicateFactory extends AbstractRoutePredicateFactory<Hos
 	@Override
 	public Predicate<ServerWebExchange> apply(Config config) {
 		return exchange -> {
+			// 得到第一个host的属性，根据配置里的正则表达式进行匹配，得到结果
 			String host = exchange.getRequest().getHeaders().getFirst("Host");
 			boolean match = this.pathMatcher.match(config.getPattern(), host);
 			if (match) {
+				// host中提取属性并设置，不清楚也不想管
 				Map<String, String> variables = this.pathMatcher.extractUriTemplateVariables(config.getPattern(), host);
 				ServerWebExchangeUtils.putUriTemplateVariables(exchange, variables);
 			}

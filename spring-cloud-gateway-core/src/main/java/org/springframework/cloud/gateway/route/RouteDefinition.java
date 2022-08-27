@@ -34,6 +34,7 @@ import java.util.UUID;
 import static org.springframework.util.StringUtils.tokenizeToStringArray;
 
 /**
+ * 用来对 Route 信息进行定义，最终会被 RouteLocator 解析成 Route，其实就对应yml的一个完整的路由策略
  * @author Spencer Gibb
  */
 @Validated
@@ -48,6 +49,9 @@ public class RouteDefinition {
 	@Valid
 	private List<FilterDefinition> filters = new ArrayList<>();
 
+	/**
+	 * 定义目的地 URI
+	 */
 	@NotNull
 	private URI uri;
 
@@ -55,6 +59,12 @@ public class RouteDefinition {
 
 	public RouteDefinition() {}
 
+	/**
+	 * 根据 text 创建 RouteDefinition
+	 *
+	 * @param text 格式 ${id}=${uri},${predicates[0]},${predicates[1]}...${predicates[n]}
+	 *             例如 route001=http://127.0.0.1,Host=**.addrequestparameter.org,Path=/get
+	 */
 	public RouteDefinition(String text) {
 		int eqIdx = text.indexOf('=');
 		if (eqIdx <= 0) {
@@ -62,12 +72,15 @@ public class RouteDefinition {
 					", must be of the form name=value");
 		}
 
+		// 配置中路由的名称
 		setId(text.substring(0, eqIdx));
-
+		// predicates，得到断言的参数，多个断言,分割，一个断言key、value=分割
 		String[] args = tokenizeToStringArray(text.substring(eqIdx+1), ",");
 
+		// args第一位是uri
 		setUri(URI.create(args[0]));
 
+		// 后续是入参
 		for (int i=1; i < args.length; i++) {
 			this.predicates.add(new PredicateDefinition(args[i]));
 		}

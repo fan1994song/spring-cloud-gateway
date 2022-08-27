@@ -38,6 +38,8 @@ import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.G
 
 /**
  * @author Spencer Gibb
+ * DispatcherHandler类似DispatcherServlet的操作
+ * 匹配route并返回处理route的filteringWebHandler
  */
 public class RoutePredicateHandlerMapping extends AbstractHandlerMapping {
 
@@ -71,13 +73,16 @@ public class RoutePredicateHandlerMapping extends AbstractHandlerMapping {
 		return environment.getProperty(prefix + "port", Integer.class);
 	}
 
+	// despatcherHandler的handler方法会最终调用到该方法匹配路由，得到该路由的过滤器FilteringWebHandler
 	@Override
 	protected Mono<?> getHandlerInternal(ServerWebExchange exchange) {
 		// don't handle requests on management port if set and different than server port
+		// 基础校验
 		if (this.managementPortType == DIFFERENT && this.managementPort != null
 				&& exchange.getRequest().getURI().getPort() == this.managementPort) {
 			return Mono.empty();
 		}
+		// 设置 GATEWAY_HANDLER_MAPPER_ATTR 为 RoutePredicateHandlerMapping
 		exchange.getAttributes().put(GATEWAY_HANDLER_MAPPER_ATTR, getSimpleName());
 
 		return lookupRoute(exchange)
@@ -89,6 +94,7 @@ public class RoutePredicateHandlerMapping extends AbstractHandlerMapping {
 					}
 
 					exchange.getAttributes().put(GATEWAY_ROUTE_ATTR, r);
+					// 返回FilteringWebHandler
 					return Mono.just(webHandler);
 				}).switchIfEmpty(Mono.empty().then(Mono.fromRunnable(() -> {
 					exchange.getAttributes().remove(GATEWAY_PREDICATE_ROUTE_ATTR);
@@ -117,10 +123,16 @@ public class RoutePredicateHandlerMapping extends AbstractHandlerMapping {
 		return out.toString();
 	}
 
+	/**
+	 * 匹配 Route
+	 * @param exchange
+	 * @return
+	 */
 	protected Mono<Route> lookupRoute(ServerWebExchange exchange) {
 		return this.routeLocator
 				.getRoutes()
 				//individually filter routes so that filterWhen error delaying is not a problem
+				// 并行有顺序的执行匹配得到结果
 				.concatMap(route -> Mono
 						.just(route)
 						.filterWhen(r -> {
@@ -141,6 +153,7 @@ public class RoutePredicateHandlerMapping extends AbstractHandlerMapping {
 					if (logger.isDebugEnabled()) {
 						logger.debug("Route matched: " + route.getId());
 					}
+					// 校验 Route 的有效性
 					validateRoute(route, exchange);
 					return route;
 				});
