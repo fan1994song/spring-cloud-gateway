@@ -56,6 +56,8 @@ import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.c
  * @author Spencer Gibb
  * @author Michele Mancioppi
  * @author Olga Maciaszek-Sharma
+ *
+ * 实现基于 Route 级别的熔断功能
  */
 public class HystrixGatewayFilterFactory extends AbstractGatewayFilterFactory<HystrixGatewayFilterFactory.Config> {
 
@@ -86,6 +88,7 @@ public class HystrixGatewayFilterFactory extends AbstractGatewayFilterFactory<Hy
 	}
 
 	public GatewayFilter apply(String routeId, Consumer<Config> consumer) {
+		// consumer函数内部处理config数据
 		Config config = newConfig();
 		consumer.accept(config);
 
@@ -98,6 +101,7 @@ public class HystrixGatewayFilterFactory extends AbstractGatewayFilterFactory<Hy
 
 	@Override
 	public GatewayFilter apply(Config config) {
+		// 如果没有提供名称，则从config的名称和class信息默认生成一个
 		//TODO: if no name is supplied, generate one from command id (useful for default filter)
 		if (config.setter == null) {
 			Assert.notNull(config.name, "A name must be supplied for the Hystrix Command Key");
@@ -109,18 +113,23 @@ public class HystrixGatewayFilterFactory extends AbstractGatewayFilterFactory<Hy
 		}
 
 		return (exchange, chain) -> {
+			// 创建 RouteHystrixCommand 对象
 			RouteHystrixCommand command = new RouteHystrixCommand(config.setter, config.fallbackUri, exchange, chain);
 
 			return Mono.create(s -> {
+				// 使用 Hystrix Command Observable 订阅
 				Subscription sub = command.toObservable().subscribe(s::success, s::error, s::success);
+				// Mono 取消时，取消 Hystrix Command Observable 的订阅，结束 Hystrix Command 的执行
 				s.onCancel(sub::unsubscribe);
 			}).onErrorResume((Function<Throwable, Mono<Void>>) throwable -> {
+				// 若出现在Hystrix线程池执行异常
 				if (throwable instanceof HystrixRuntimeException) {
 					HystrixRuntimeException e = (HystrixRuntimeException) throwable;
 					HystrixRuntimeException.FailureType failureType = e.getFailureType();
 
 					switch (failureType) {
 						case TIMEOUT:
+							// 当 Hystrix Command 执行超时时，返回TimeoutException
 							return Mono.error(new TimeoutException());
 						case COMMAND_EXCEPTION: {
 							Throwable cause = e.getCause();
@@ -128,6 +137,8 @@ public class HystrixGatewayFilterFactory extends AbstractGatewayFilterFactory<Hy
 							/*
 							 * We forsake here the null check for cause as HystrixRuntimeException will
 							 * always have a cause if the failure type is COMMAND_EXCEPTION.
+							 * 我们在这里放弃了对原因的空检查，因为如果失败类型是 COMMAND_EXCEPTION，
+							 * HystrixRuntimeException 将始终有原因
 							 */
 							if (cause instanceof ResponseStatusException || AnnotatedElementUtils
 									.findMergedAnnotation(cause.getClass(), ResponseStatus.class) != null) {
@@ -137,6 +148,7 @@ public class HystrixGatewayFilterFactory extends AbstractGatewayFilterFactory<Hy
 						default: break;
 					}
 				}
+				// 当 Hystrix Command 发生其他异常时，例如断路器打开，返回 Mono.error(throwable)
 				return Mono.error(throwable);
 			}).then();
 		};

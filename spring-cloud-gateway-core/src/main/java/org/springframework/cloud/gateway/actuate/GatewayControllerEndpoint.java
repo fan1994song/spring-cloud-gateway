@@ -56,11 +56,25 @@ import reactor.core.publisher.Mono;
 public class GatewayControllerEndpoint implements ApplicationEventPublisherAware {
 
 	private static final Log log = LogFactory.getLog(GatewayControllerEndpoint.class);
-
+	/**
+	 * 路由定义定位器
+	 */
 	private RouteDefinitionLocator routeDefinitionLocator;
+	/**
+	 * 全局过滤器
+	 */
 	private List<GlobalFilter> globalFilters;
+	/**
+	 * 网关过滤器工厂
+	 */
 	private List<GatewayFilterFactory> GatewayFilters;
+	/**
+	 * 存储器 RouteDefinitionLocator 对象
+	 */
 	private RouteDefinitionWriter routeDefinitionWriter;
+	/**
+	 * 路由定位器
+	 */
 	private RouteLocator routeLocator;
 	/**
 	 * 应用事件发布器
@@ -84,17 +98,29 @@ public class GatewayControllerEndpoint implements ApplicationEventPublisherAware
 
 	// TODO: Add uncommited or new but not active routes endpoint
 
+	/**
+	 * 刷新路由缓存
+	 * @return
+	 */
 	@PostMapping("/refresh")
 	public Mono<Void> refresh() {
 	    this.publisher.publishEvent(new RefreshRoutesEvent(this));
 		return Mono.empty();
 	}
 
+	/**
+	 * 获取全局的过滤器列表
+	 * @return
+	 */
 	@GetMapping("/globalfilters")
 	public Mono<HashMap<String, Object>> globalfilters() {
 		return getNamesToOrders(this.globalFilters);
 	}
 
+	/**
+	 * 获取路由过滤器工厂列表
+	 * @return
+	 */
 	@GetMapping("/routefilters")
 	public Mono<HashMap<String, Object>> routefilers() {
 		return getNamesToOrders(this.GatewayFilters);
@@ -114,6 +140,10 @@ public class GatewayControllerEndpoint implements ApplicationEventPublisherAware
 		return map;
 	}
 
+	/**
+	 * 获取路由列表
+	 * @return
+	 */
 	// TODO: Flush out routes without a definition
 	@GetMapping("/routes")
 	public Mono<List<Map<String, Object>>> routes() {
@@ -160,6 +190,13 @@ public class GatewayControllerEndpoint implements ApplicationEventPublisherAware
 /*
 http POST :8080/admin/gateway/routes/apiaddreqhead uri=http://httpbin.org:80 predicates:='["Host=**.apiaddrequestheader.org", "Path=/headers"]' filters:='["AddRequestHeader=X-Request-ApiFoo, ApiBar"]'
 */
+
+	/**
+	 * 添加修改单个路由信息
+	 * @param id
+	 * @param route
+	 * @return
+	 */
 	@PostMapping("/routes/{id}")
 	@SuppressWarnings("unchecked")
 	public Mono<ResponseEntity<Void>> save(@PathVariable String id, @RequestBody Mono<RouteDefinition> route) {
@@ -172,6 +209,11 @@ http POST :8080/admin/gateway/routes/apiaddreqhead uri=http://httpbin.org:80 pre
 		));
 	}
 
+	/**
+	 * 删除路由
+	 * @param id
+	 * @return
+	 */
 	@DeleteMapping("/routes/{id}")
 	public Mono<ResponseEntity<Object>> delete(@PathVariable String id) {
 		return this.routeDefinitionWriter.delete(Mono.just(id))
@@ -179,6 +221,11 @@ http POST :8080/admin/gateway/routes/apiaddreqhead uri=http://httpbin.org:80 pre
 				.onErrorResume(t -> t instanceof NotFoundException, t -> Mono.just(ResponseEntity.notFound().build()));
 	}
 
+	/**
+	 * 获取路由信息
+	 * @param id
+	 * @return
+	 */
 	@GetMapping("/routes/{id}")
 	public Mono<ResponseEntity<RouteDefinition>> route(@PathVariable String id) {
 		//TODO: missing RouteLocator
@@ -189,6 +236,11 @@ http POST :8080/admin/gateway/routes/apiaddreqhead uri=http://httpbin.org:80 pre
 				.switchIfEmpty(Mono.just(ResponseEntity.notFound().build()));
 	}
 
+	/**
+	 * 单个路由的过滤器
+	 * @param id
+	 * @return
+	 */
 	@GetMapping("/routes/{id}/combinedfilters")
 	public Mono<HashMap<String, Object>> combinedfilters(@PathVariable String id) {
 		//TODO: missing global filters

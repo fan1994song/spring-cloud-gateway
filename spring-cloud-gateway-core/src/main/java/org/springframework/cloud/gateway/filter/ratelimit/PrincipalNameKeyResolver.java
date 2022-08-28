@@ -11,6 +11,7 @@ public class PrincipalNameKeyResolver implements KeyResolver {
 
 	@Override
 	public Mono<String> resolve(ServerWebExchange exchange) {
+		// 使用请求认证的 java.security.Principal 作为限流键
 		return exchange.getPrincipal().map(Principal::getName).switchIfEmpty(Mono.empty());
 	}
 }

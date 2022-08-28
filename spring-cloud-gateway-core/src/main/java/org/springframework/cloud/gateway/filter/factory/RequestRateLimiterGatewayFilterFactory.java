@@ -32,6 +32,8 @@ import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.s
 
 /**
  * User Request Rate Limiter filter. See https://stripe.com/blog/rate-limiters and
+ * RequestRateLimiterGatewayFilter 使用 Redis + Lua 实现分布式限流。而限流的粒度，
+ * 例如 URL / 用户 / IP 等，通过 org.springframework.cloud.gateway.filter.ratelimit.KeyResolver 实现类决定
  */
 @ConfigurationProperties("spring.cloud.gateway.filter.request-rate-limiter")
 public class RequestRateLimiterGatewayFilterFactory extends AbstractGatewayFilterFactory<RequestRateLimiterGatewayFilterFactory.Config> {
@@ -39,6 +41,7 @@ public class RequestRateLimiterGatewayFilterFactory extends AbstractGatewayFilte
 	public static final String KEY_RESOLVER_KEY = "keyResolver";
 	private static final String EMPTY_KEY = "____EMPTY_KEY__";
 
+	// 默认情况下，使用 RedisRateLimiter
 	private final RateLimiter defaultRateLimiter;
 	private final KeyResolver defaultKeyResolver;
 
@@ -82,15 +85,21 @@ public class RequestRateLimiterGatewayFilterFactory extends AbstractGatewayFilte
 	@SuppressWarnings("unchecked")
 	@Override
 	public GatewayFilter apply(Config config) {
+		// 获得 KeyResolver：默认情况下，使用 PrincipalNameKeyResolver
 		KeyResolver resolver = getOrDefault(config.keyResolver, defaultKeyResolver);
+		// 获得 限流限制器：默认情况下，使用 RedisRateLimiter
 		RateLimiter<Object> limiter = getOrDefault(config.rateLimiter, defaultRateLimiter);
+		// 如果 Key Resolver 返回一个空键，则切换到拒绝请求，默认为 true
 		boolean denyEmpty = getOrDefault(config.denyEmptyKey, this.denyEmptyKey);
+		// 当 denyEmpty Key 为真时返回的HttpStatus，默认为 FORBIDDEN
 		HttpStatusHolder emptyKeyStatus = HttpStatusHolder.parse(getOrDefault(config.emptyKeyStatus, this.emptyKeyStatusCode));
 
 		return (exchange, chain) -> {
 			Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
 
+			// resolve：获得请求的限流键
 			return resolver.resolve(exchange).defaultIfEmpty(EMPTY_KEY).flatMap(key -> {
+				// 当限流键为空时，过滤器链不会继续向下执行
 				if (EMPTY_KEY.equals(key)) {
 					if (denyEmpty) {
 						setResponseStatus(exchange, emptyKeyStatus);
@@ -98,16 +107,19 @@ public class RequestRateLimiterGatewayFilterFactory extends AbstractGatewayFilte
 					}
 					return chain.filter(exchange);
 				}
+				// isAllowed 是否被限流
 				return limiter.isAllowed(route.getId(), key).flatMap(response -> {
 
 					for (Map.Entry<String, String> header : response.getHeaders().entrySet()) {
 						exchange.getResponse().getHeaders().add(header.getKey(), header.getValue());
 					}
 
+					// // 允许访问
 					if (response.isAllowed()) {
 						return chain.filter(exchange);
 					}
 
+					// 被限流，不允许访问
 					setResponseStatus(exchange, config.getStatusCode());
 					return exchange.getResponse().setComplete();
 				});

@@ -132,6 +132,7 @@ public class RedisRateLimiter extends AbstractRateLimiter<RedisRateLimiter.Confi
 	 * This uses a basic token bucket algorithm and relies on the fact that Redis scripts
 	 * execute atomically. No other operations can run between fetching the count and
 	 * writing the new count.
+	 * 这使用了基本的令牌桶算法，并依赖于 Redis 脚本以原子方式执行的事实。在获取计数和写入新计数之间不能运行其他操作
 	 */
 	@Override
 	@SuppressWarnings("unchecked")
@@ -146,22 +147,24 @@ public class RedisRateLimiter extends AbstractRateLimiter<RedisRateLimiter.Confi
 			throw new IllegalArgumentException("No Configuration found for route " + routeId);
 		}
 
-		// How many requests per second do you want a user to be allowed to do?
+		// How many requests per second do you want a user to be allowed to do? 每秒执行多少个请求
 		int replenishRate = routeConfig.getReplenishRate();
 
-		// How much bursting do you want to allow?
+		// How much bursting do you want to allow? 你想允许多少爆发
 		int burstCapacity = routeConfig.getBurstCapacity();
 
 		try {
 			List<String> keys = getKeys(id);
 
 
-			// The arguments to the LUA script. time() returns unixtime in seconds.
+			// The arguments to the LUA script. time() returns unixtime in seconds. LUA 脚本的参数。 time() 以秒为单位返回 unixtime
 			List<String> scriptArgs = Arrays.asList(replenishRate + "", burstCapacity + "",
 					Instant.now().getEpochSecond() + "", "1");
-			// allowed, tokens_left = redis.eval(SCRIPT, keys, args)
+			// allowed, tokens_left = redis.eval(SCRIPT, keys, args)，基于redis的令牌桶限流脚本执行
 			Flux<List<Long>> flux = this.redisTemplate.execute(this.script, keys, scriptArgs);
 			// .log("redisratelimiter", Level.FINER);
+			// 当 Redis Lua 脚本过程中发生异常，忽略异常，返回 Flux.just(Arrays.asList(1L, -1L)) ，
+			// 即认为获取令牌成功。为什么？在 Redis 发生故障时，我们不希望限流器对 Reids 是强依赖，并且 Redis 发生故障的概率本身就很低
 			return flux.onErrorResume(throwable -> Flux.just(Arrays.asList(1L, -1L)))
 					.reduce(new ArrayList<Long>(), (longs, l) -> {
 						longs.addAll(l);

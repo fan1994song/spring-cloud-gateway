@@ -55,18 +55,22 @@ public class WebClientHttpRoutingFilter implements GlobalFilter, Ordered {
 
 	@Override
 	public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+		// 获得 requestUrl
 		URI requestUrl = exchange.getRequiredAttribute(GATEWAY_REQUEST_URL_ATTR);
 
+		// 是否可以处理
 		String scheme = requestUrl.getScheme();
 		if (isAlreadyRouted(exchange) || (!"http".equals(scheme) && !"https".equals(scheme))) {
 			return chain.filter(exchange);
 		}
+		// 设置处理状态值
 		setAlreadyRouted(exchange);
 
 		ServerHttpRequest request = exchange.getRequest();
 
 		HttpMethod method = request.getMethod();
 
+		// 创建向后端服务的请求
 		RequestBodySpec bodySpec = this.webClient.method(method)
 				.uri(requestUrl)
 				.headers(httpHeaders -> {
@@ -82,6 +86,7 @@ public class WebClientHttpRoutingFilter implements GlobalFilter, Ordered {
 			headersSpec = bodySpec;
 		}
 
+		// 发起向后端服务的请求
 		return headersSpec.exchange()
 				// .log("webClient route")
 				.flatMap(res -> {
@@ -90,6 +95,8 @@ public class WebClientHttpRoutingFilter implements GlobalFilter, Ordered {
 					response.setStatusCode(res.statusCode());
 					// Defer committing the response until all route filters have run
 					// Put client response as ServerWebExchange attribute and write response later NettyWriteResponseFilter
+					// 推迟提交响应，直到所有路由过滤器都运行 将客户端响应作为 ServerWebExchange 属性并稍后写入响应 NettyWriteResponseFilter
+					// 设置 Response 到 CLIENT_RESPONSE_ATTR
 					exchange.getAttributes().put(CLIENT_RESPONSE_ATTR, res);
 					return chain.filter(exchange);
 				});

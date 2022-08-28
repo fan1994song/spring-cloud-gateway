@@ -37,6 +37,7 @@ import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.C
 
 /**
  * @author Spencer Gibb
+ * Netty 回写响应网关过滤器
  */
 public class NettyWriteResponseFilter implements GlobalFilter, Ordered {
 
@@ -59,6 +60,7 @@ public class NettyWriteResponseFilter implements GlobalFilter, Ordered {
 	public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
 		// NOTICE: nothing in "pre" filter stage as CLIENT_RESPONSE_ATTR is not added
 		// until the WebHandler is run
+		// 获得 Response
 		return chain.filter(exchange).then(Mono.defer(() -> {
 			HttpClientResponse clientResponse = exchange.getAttribute(CLIENT_RESPONSE_ATTR);
 
@@ -68,6 +70,7 @@ public class NettyWriteResponseFilter implements GlobalFilter, Ordered {
 			log.trace("NettyWriteResponseFilter start");
 			ServerHttpResponse response = exchange.getResponse();
 
+			// 将 Netty Response 写回给客户端。
 			NettyDataBufferFactory factory = (NettyDataBufferFactory) response.bufferFactory();
 			//TODO: what if it's not netty
 

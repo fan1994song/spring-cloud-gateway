@@ -7,5 +7,6 @@ import reactor.core.publisher.Mono;
  * @author Spencer Gibb
  */
 public interface KeyResolver {
+	// 获取请求的限流key
 	Mono<String> resolve(ServerWebExchange exchange);
 }

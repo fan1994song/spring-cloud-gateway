@@ -57,6 +57,7 @@ import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.s
 /**
  * @author Spencer Gibb
  * @author Biju Kunjummen
+ * Netty 路由网关过滤器。其根据 http:// 或 https:// 前缀( Scheme )过滤处理，使用基于 Netty 实现的 HttpClient 请求后端 Http 服务
  */
 public class NettyRoutingFilter implements GlobalFilter, Ordered {
 
@@ -88,29 +89,37 @@ public class NettyRoutingFilter implements GlobalFilter, Ordered {
 
 	@Override
 	public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+		// 获取requestUrl
 		URI requestUrl = exchange.getRequiredAttribute(GATEWAY_REQUEST_URL_ATTR);
 
+		// 若已经处理过或者不是http、https请求，return下个filter调度
 		String scheme = requestUrl.getScheme();
 		if (isAlreadyRouted(exchange) || (!"http".equals(scheme) && !"https".equals(scheme))) {
 			return chain.filter(exchange);
 		}
+		// 打标
 		setAlreadyRouted(exchange);
 
 		ServerHttpRequest request = exchange.getRequest();
 
+		// 得到请求方式、url
 		final HttpMethod method = HttpMethod.valueOf(request.getMethodValue());
 		final String url = requestUrl.toString();
 
 		HttpHeaders filtered = filterRequest(getHeadersFilters(), exchange);
 
+		// 获取request中的最终header
 		final DefaultHttpHeaders httpHeaders = new DefaultHttpHeaders();
 		filtered.forEach(httpHeaders::set);
 
+		// 是否需要选择传输编码
 		String transferEncoding = request.getHeaders().getFirst(HttpHeaders.TRANSFER_ENCODING);
 		boolean chunkedTransfer = "chunked".equalsIgnoreCase(transferEncoding);
 
+		// 是否保留主机头
 		boolean preserveHost = exchange.getAttributeOrDefault(PRESERVE_HOST_HEADER_ATTRIBUTE, false);
 
+		// 发起对后端服务的请求
 		Mono<HttpClientResponse> responseMono = this.httpClient.request(method, url, req -> {
 			final HttpClientRequest proxyRequest = req.options(NettyPipeline.SendOptions::flushOnEach)
 					.headers(httpHeaders)
@@ -118,11 +127,13 @@ public class NettyRoutingFilter implements GlobalFilter, Ordered {
 					.failOnServerError(false)
 					.failOnClientError(false);
 
+			// 若需保留HOST头部=信息，塞入header中
 			if (preserveHost) {
 				String host = request.getHeaders().getFirst(HttpHeaders.HOST);
 				proxyRequest.header(HttpHeaders.HOST, host);
 			}
 
+			// 根据配置项设置读取超时最大时间间隔
 			if (properties.getResponseTimeout() != null) {
 				proxyRequest.context(ctx -> ctx.addHandlerFirst(
 						new ReadTimeoutHandler(properties.getResponseTimeout().toMillis(), TimeUnit.MILLISECONDS)));
@@ -136,6 +147,7 @@ public class NettyRoutingFilter implements GlobalFilter, Ordered {
 		return responseMono.doOnNext(res -> {
 			ServerHttpResponse response = exchange.getResponse();
 			// put headers and status so filters can modify the response
+			// 放置header和status，以便过滤器可以修改响应
 			HttpHeaders headers = new HttpHeaders();
 
 			res.responseHeaders().forEach(entry -> headers.add(entry.getKey(), entry.getValue()));
@@ -155,14 +167,17 @@ public class NettyRoutingFilter implements GlobalFilter, Ordered {
 				throw new IllegalStateException("Unable to set status code on response: " +res.status().code()+", "+response.getClass());
 			}
 
+			// 确保标头过滤器在设置状态后运行，以便它在响应中可用
 			// make sure headers filters run after setting status so it is available in response
 			HttpHeaders filteredResponseHeaders = HttpHeadersFilter.filter(
 					getHeadersFilters(), headers, exchange, Type.RESPONSE);
 
+			// 执行完过滤器后的header放回到header中
 			response.getHeaders().putAll(filteredResponseHeaders);
 
 			// Defer committing the response until all route filters have run
 			// Put client response as ServerWebExchange attribute and write response later NettyWriteResponseFilter
+			// 推迟提交响应，直到所有路由过滤器都运行 将客户端响应作为 ServerWebExchange 属性并稍后写入响应 NettyWriteResponseFilter
 			exchange.getAttributes().put(CLIENT_RESPONSE_ATTR, res);
 		})
 				.onErrorMap(t -> properties.getResponseTimeout() != null && t instanceof ReadTimeoutException,
